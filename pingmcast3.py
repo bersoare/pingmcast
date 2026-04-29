@@ -11,18 +11,22 @@ def getargs():
 
     parser = argparse.ArgumentParser()
     parser.add_argument("-g","--group", type=str,help="Group address")
-    parser.add_argument("-mode", "-m",
+    parser.add_argument("--mode", "-m",
                         help='''Mode. Use r for Receiver, s for sender.''',
                         choices=['r','s'])
+    parser.add_argument("--addr", "-a",
+                        help='''Source address to use (sender mode only)''',
+                        type=str)
 
     return parser.parse_args()
 
-def sender(group):
-
-    sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+def sender(group: str, source_addr: str):
+    sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM, socket.IPPROTO_UDP)
     ttl = struct.pack('b', 10)
     sock.settimeout(0.2)
     sock.setsockopt(socket.IPPROTO_IP, socket.IP_MULTICAST_TTL, ttl)
+    if source_addr != "":
+        sock.setsockopt(socket.SOL_IP, socket.IP_MULTICAST_IF, socket.inet_aton(source_addr))
 
     print("Sending 5 packets to {}...".format(group))
     count = 1
@@ -40,7 +44,6 @@ def sender(group):
     sock.close()
 
 def receiver(group):
-
     try:
 
         sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
@@ -69,6 +72,7 @@ def main():
     args = getargs()
 
     group_add = args.group
+    source_addr = args.addr
 
     try:
         valid = ipaddress.IPv4Address(u'{}'.format(group_add))
@@ -80,7 +84,7 @@ def main():
         sys.exit(1)
 
     if args.mode == "s":
-        sender(group_add)
+        sender(group_add, source_addr)
 
     if args.mode == "r":
         print("Entering receiver mode! Quit with control-c")
